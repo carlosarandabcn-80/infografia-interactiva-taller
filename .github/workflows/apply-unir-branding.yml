@@ -1,0 +1,50 @@
+name: Apply UNIR branding update
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/apply-unir-branding.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  update-page:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update published page branding
+        shell: python
+        run: |
+          from pathlib import Path
+
+          page = Path('index.html')
+          html = page.read_text(encoding='utf-8')
+
+          old_brand_css = '.brand{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:28px}.logo{font-size:40px;font-weight:950;letter-spacing:-1.8px;line-height:1}.brand small{color:#b6c7da;font-weight:800}'
+          new_brand_css = '.brand{display:grid;gap:12px;margin-bottom:28px;padding-bottom:21px;border-bottom:1px solid rgba(255,255,255,.18)}.logo{display:block;width:106px;height:auto;filter:brightness(0) invert(1)}.degree{display:block;color:#ecf6ff;font-size:14px;font-weight:850;letter-spacing:.01em}.degree small{display:block;color:#9cdce3;font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}'
+          old_brand = '<div class="brand"><div class="logo">UNIR</div><small>Educacion Social</small></div>'
+          new_brand = '<div class="brand"><img class="logo" src="https://investigacion.unir.net/wp-content/uploads/2019/05/Logo_UNIR_blanco.svg" alt="UNIR Universidad Internacional de La Rioja"><span class="degree"><small>Grado oficial</small>Educaci&oacute;n Social</span></div>'
+          footer_css = '.tech-note{margin:22px 0 0;padding:17px 19px;border-top:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--surface) 68%,transparent);color:var(--muted);font-size:12.5px;line-height:1.6}.tech-note strong{display:block;margin-bottom:4px;color:var(--ink);font-size:11px;letter-spacing:.12em;text-transform:uppercase}'
+          css_anchor = '.source-card{min-height:92px;text-decoration:none;align-content:start}'
+          close_anchor = '</section></main></div>'
+          footer = '</section><footer class="tech-note" aria-label="Nota tecnica"><strong>Nota t&eacute;cnica</strong>Trabajo grupal del Grado en Educaci&oacute;n Social realizado para la asignatura <em>Salud, Dependencia y Vulnerabilidad Social</em>. Recurso acad&eacute;mico de car&aacute;cter did&aacute;ctico.</footer></main></div>'
+
+          required = [old_brand_css, old_brand, css_anchor, close_anchor]
+          missing = [value for value in required if value not in html]
+          if missing:
+              raise SystemExit('No se encontraron los puntos de insercion esperados; no se modifica la pagina.')
+
+          html = html.replace(old_brand_css, new_brand_css, 1)
+          html = html.replace(css_anchor, css_anchor + footer_css, 1)
+          html = html.replace(old_brand, new_brand, 1)
+          html = html.replace(close_anchor, footer, 1)
+          page.write_text(html, encoding='utf-8')
+      - name: Commit published update and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git rm .github/workflows/apply-unir-branding.yml
+          git commit -m "Add official UNIR branding and academic note"
+          git push
